@@ -1,0 +1,9 @@
+[package]
+name = "charizhard-ota"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-std = { version = "1.8.0", features = ["attributes"] }
+serde = { version = "1.0", features = ["derive"] }
+tide = "0.16.0"
