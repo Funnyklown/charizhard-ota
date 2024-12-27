@@ -5,10 +5,14 @@ use async_std::{
     path::Path,
     stream::{self, StreamExt},
 };
-use axum::{http::{HeaderMap, HeaderValue, StatusCode}, response::IntoResponse};
-use serde_json::{json, Value};
+use axum::{
+    http::{HeaderMap, HeaderValue, StatusCode},
+    response::IntoResponse,
+};
 use http_body_util::{BodyStream, StreamBody};
+use serde_json::{json, Value};
 use tokio_util::io::ReaderStream;
+use utils::get_file;
 mod utils;
 
 // basic handler that responds with a static string
@@ -16,7 +20,7 @@ pub async fn root() -> &'static str {
     "Welcome to Charizhard OTA ! Check /latest/ to get latest firmware"
 }
 
-pub async fn latest_firmware() -> impl IntoResponse {
+pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
     let firmware_dir = "./bin";
 
     let entries = match fs::read_dir(firmware_dir).await {
@@ -66,30 +70,8 @@ pub async fn latest_firmware() -> impl IntoResponse {
                 );
             }
         };
-        // Create a stream body for the file
-        let mut stream = ReaderStream::new(file);
-        let mut body = Vec::new();
-        while let Some(chunck) = stream.next().await {
-            body.extend_from_slice(&chunck.unwrap());
-        }
 
-        let full_body=String::from_utf8(body).unwrap();
-        // Set headers
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::CONTENT_TYPE,
-            HeaderValue::from_static("application/octet-stream"),
-        );
-        headers.insert(
-            axum::http::header::CONTENT_DISPOSITION,
-            HeaderValue::from_str(&format!("attachment; filename=\"{}\"", latest_firmware)).unwrap(),
-        );
-        
-        return (
-            StatusCode::OK,
-            headers,
-            full_body,
-        )
+        get_file(file, latest_firmware).await;
     }
 
     // If no firmware files are found
@@ -99,11 +81,11 @@ pub async fn latest_firmware() -> impl IntoResponse {
         "No firmware files found".to_string(),
     )
 }
-async fn specific_firmware() {
+pub async fn specific_firmware() {
     todo!("returns a specific firmware for a given file_name arguments")
 }
 
-async fn post_firmware() {
+pub async fn post_firmware() {
     todo!("post firmware to ./bin")
 }
 
