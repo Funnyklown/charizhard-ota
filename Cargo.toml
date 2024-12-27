@@ -4,13 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.95"
 async-std = { version = "1.8.0", features = ["attributes"] }
-axum = "0.7.9"
-dotenv = "0.15.0"
+axum = {version = "0.7.9", features = ["json"]}
 env_logger = "0.11.6"
 jsonwebtoken = "8.1.1"
 regex = "1.11.1"
 serde = "1.0.216"
+serde_json = "1.0.134"
 tempfile = "3.14.0"
-tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.42.0", features = ["full"] }
+tokio-util = { version = "0.7.13", features = ["io"] }
 tracing-subscriber = "0.3.19"
