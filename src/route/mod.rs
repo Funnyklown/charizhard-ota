@@ -1,31 +1,35 @@
+use std::ops::Deref;
+
 use async_std::{
     fs::{self, File},
     path::Path,
-    stream::StreamExt,
+    stream::{self, StreamExt},
 };
-use axum::{http::StatusCode, Json};
+use axum::{http::{HeaderMap, HeaderValue, StatusCode}, response::IntoResponse};
 use serde_json::{json, Value};
+use http_body_util::{BodyStream, StreamBody};
+use tokio_util::io::ReaderStream;
+mod utils;
 
 // basic handler that responds with a static string
 pub async fn root() -> &'static str {
     "Welcome to Charizhard OTA ! Check /latest/ to get latest firmware"
 }
 
-pub async fn latest_firmware() -> Result<(StatusCode, axum::Json<Value>), axum::Error> {
+pub async fn latest_firmware() -> impl IntoResponse {
     let firmware_dir = "./bin";
 
-    // Read the directory contents
     let entries = match fs::read_dir(firmware_dir).await {
         Ok(entries) => entries,
         Err(_) => {
-            return Ok((
+            return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "Failed to read firmware directory"})),
-            ));
+                HeaderMap::default(),
+                "Failed to read firmware directory".to_string(),
+            );
         }
     };
 
-    // Collect firmware files
     let mut firmware_files = Vec::new();
     tokio::pin!(entries); // Pin the stream for iteration
     while let Some(entry_result) = entries.next().await {
@@ -38,55 +42,62 @@ pub async fn latest_firmware() -> Result<(StatusCode, axum::Json<Value>), axum::
                 }
             }
             Err(err) => {
-                return Ok((
+                return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": format!("Error reading directory entry: {}", err)})),
-                ));
+                    HeaderMap::default(),
+                    "Error reading directory entry".to_string(),
+                );
             }
         }
     }
 
-    // Sort firmware files to find the latest version
     firmware_files.sort_by(|a, b| a.cmp(b));
 
-    // Get the latest firmware file
     if let Some(latest_firmware) = firmware_files.last() {
         let file_path = Path::new(firmware_dir).join(latest_firmware);
 
-        // Open the file
-        let file = match File::open(&file_path).await {
+        let file = match tokio::fs::File::open(&file_path).await {
             Ok(file) => file,
             Err(_) => {
-                return Ok((
+                return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": "Failed to open firmware file"})),
-                ));
+                    HeaderMap::default(),
+                    "Failed to open firmware file".to_string(),
+                );
             }
         };
-        todo!("Fix Stream of latest firmware to file");
         // Create a stream body for the file
-        //let stream = ReaderStream::new(file);
-        //let body = StreamBody::new(stream);
+        let mut stream = ReaderStream::new(file);
+        let mut body = Vec::new();
+        while let Some(chunck) = stream.next().await {
+            body.extend_from_slice(&chunck.unwrap());
+        }
 
+        let full_body=String::from_utf8(body).unwrap();
         // Set headers
-        //let mut headers = HeaderMap::new();
-        //headers.insert(
-        //    axum::http::header::CONTENT_TYPE,
-        //    HeaderValue::from_static("application/octet-stream"),
-        //);
-        //headers.insert(
-        //    axum::http::header::CONTENT_DISPOSITION,
-        //    HeaderValue::from_str(&format!("attachment; filename=\"{}\"", latest_firmware)).unwrap(),
-        //);
-        //
-        //return (StatusCode::OK, headers, body).into_response();
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/octet-stream"),
+        );
+        headers.insert(
+            axum::http::header::CONTENT_DISPOSITION,
+            HeaderValue::from_str(&format!("attachment; filename=\"{}\"", latest_firmware)).unwrap(),
+        );
+        
+        return (
+            StatusCode::OK,
+            headers,
+            full_body,
+        )
     }
 
     // If no firmware files are found
-    Ok((
+    (
         StatusCode::NOT_FOUND,
-        Json(json!({"error": "No firmware files found"})),
-    ))
+        HeaderMap::default(),
+        "No firmware files found".to_string(),
+    )
 }
 async fn specific_firmware() {
     todo!("returns a specific firmware for a given file_name arguments")
