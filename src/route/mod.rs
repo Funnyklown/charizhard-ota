@@ -1,13 +1,13 @@
-use std::ops::Deref;
-
+//todo clean the the useless unwraps by using anyhow-error response
 use async_std::{
     fs::{self, File},
     path::Path,
     stream::{self, StreamExt},
 };
+use axum::extract::Path as AxumPath;
 use axum::{
-    http::{HeaderMap, HeaderValue, StatusCode},
-    response::IntoResponse,
+    extract::Request,
+    http::{HeaderMap, StatusCode},
 };
 use http_body_util::{BodyStream, StreamBody};
 use serde_json::{json, Value};
@@ -15,17 +15,17 @@ use tokio_util::io::ReaderStream;
 use utils::get_file;
 mod utils;
 
+const FIRMWARE_DIR: &str = "./bin";
 // basic handler that responds with a static string
 pub async fn root() -> &'static str {
     "Welcome to Charizhard OTA ! Check /latest/ to get latest firmware"
 }
 
 pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
-    let firmware_dir = "./bin";
-
-    let entries = match fs::read_dir(firmware_dir).await {
+    let entries = match fs::read_dir(FIRMWARE_DIR).await {
         Ok(entries) => entries,
-        Err(_) => {
+        Err(e) => {
+            println!("{}", e);
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 HeaderMap::default(),
@@ -46,6 +46,7 @@ pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
                 }
             }
             Err(err) => {
+                println!("{}", err);
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     HeaderMap::default(),
@@ -58,11 +59,12 @@ pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
     firmware_files.sort_by(|a, b| a.cmp(b));
 
     if let Some(latest_firmware) = firmware_files.last() {
-        let file_path = Path::new(firmware_dir).join(latest_firmware);
+        let file_path = Path::new(FIRMWARE_DIR).join(latest_firmware);
 
         let file = match tokio::fs::File::open(&file_path).await {
             Ok(file) => file,
-            Err(_) => {
+            Err(e) => {
+                println!("{}", e);
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     HeaderMap::default(),
@@ -70,8 +72,7 @@ pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
                 );
             }
         };
-
-        get_file(file, latest_firmware).await;
+        return get_file(file, latest_firmware).await;
     }
 
     // If no firmware files are found
@@ -81,14 +82,69 @@ pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
         "No firmware files found".to_string(),
     )
 }
-pub async fn specific_firmware() {
-    todo!("returns a specific firmware for a given file_name arguments")
-}
+//todo implement specific_firmware
+pub async fn specific_firmware(
+    AxumPath(file_name): AxumPath<String>,
+) -> (StatusCode, HeaderMap, std::string::String) {
+    let entries = match fs::read_dir(FIRMWARE_DIR).await {
+        Ok(entries) => entries,
+        Err(e) => {
+            println!("{}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                HeaderMap::default(),
+                "Failed to read firmware directory".to_string(),
+            );
+        }
+    };
 
+    tokio::pin!(entries); // Pin the stream for iteration
+    while let Some(entry_result) = entries.next().await {
+        match entry_result {
+            Ok(entry) => {
+                let caca = entry.file_name().into_string();
+                if caca == Ok(file_name.to_string()) {
+                    let file = match tokio::fs::File::open(
+                        Path::new(FIRMWARE_DIR).join(file_name.clone()),
+                    )
+                    .await
+                    {
+                        Ok(file) => file,
+                        Err(e) => {
+                            println!("{}", e);
+                            return (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                HeaderMap::default(),
+                                "Failed to open firmware file".to_string(),
+                            );
+                        }
+                    };
+                    return get_file(file, &file_name).await;
+                }
+            }
+            Err(err) => {
+                println!("{}", err);
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    HeaderMap::default(),
+                    "Error reading directory entry".to_string(),
+                );
+            }
+        }
+    }
+    /* `(StatusCode, HeaderMap, std::string::String)` value */
+    // If no firmware files are found
+    (
+        StatusCode::NOT_FOUND,
+        HeaderMap::default(),
+        "Firmware file not found".to_string(),
+    )
+}
+//todo implement post_firmware
 pub async fn post_firmware() {
     todo!("post firmware to ./bin")
 }
-
+//todo implement delete_firmware
 async fn delete_firmware() {
     todo!("delete firmware from ./bin")
 }
