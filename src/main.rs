@@ -4,7 +4,7 @@ use axum::{
     Router,
 };
 use charizhard_ota::route::{root, specific_firmware};
-use route::latest_firmware;
+use route::{latest_firmware, post_firmware};
 use std::result::Result::Ok;
 mod route;
 
@@ -19,7 +19,7 @@ async fn main() -> Result<(), Error> {
         .route("/", get(root))
         // `POST /users` goes to `create_user`
         .route("/latest", get(latest_firmware))
-        .route("/firmware/:file_name", get(specific_firmware));
+        .route("/firmware/:file_name", get(specific_firmware).post(post_firmware));
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;

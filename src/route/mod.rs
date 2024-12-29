@@ -12,7 +12,7 @@ use axum::{
 use http_body_util::{BodyStream, StreamBody};
 use serde_json::{json, Value};
 use tokio_util::io::ReaderStream;
-use utils::get_file;
+use utils::{get_file, stream_to_file};
 mod utils;
 
 const FIRMWARE_DIR: &str = "./bin";
@@ -82,7 +82,6 @@ pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
         "No firmware files found".to_string(),
     )
 }
-//todo implement specific_firmware
 pub async fn specific_firmware(
     AxumPath(file_name): AxumPath<String>,
 ) -> (StatusCode, HeaderMap, std::string::String) {
@@ -141,8 +140,11 @@ pub async fn specific_firmware(
     )
 }
 //todo implement post_firmware
-pub async fn post_firmware() {
-    todo!("post firmware to ./bin")
+pub async fn post_firmware(
+    AxumPath(file_name): AxumPath<String>,
+    request: Request,
+) -> Result<(), (StatusCode, String)> {
+    stream_to_file(&file_name, request.into_body().into_data_stream()).await
 }
 //todo implement delete_firmware
 async fn delete_firmware() {

@@ -36,7 +36,7 @@ pub async fn get_file(
     return (StatusCode::OK, headers, full_body);
 }
 
-async fn stream_to_file<S, E>(path: &str, stream: S) -> Result<(), (StatusCode, String)>
+pub async fn stream_to_file<S, E>(path: &str, stream: S) -> Result<(), (StatusCode, String)>
 where
     S: Stream<Item = Result<Bytes, E>>,
     E: Into<BoxError>,
