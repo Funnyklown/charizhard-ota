@@ -4,7 +4,7 @@ use axum::{
     Router,
 };
 use charizhard_ota::route::{root, specific_firmware};
-use route::{latest_firmware, post_firmware};
+use route::{delete_firmware, latest_firmware, post_firmware};
 use std::result::Result::Ok;
 mod route;
 
@@ -19,7 +19,7 @@ async fn main() -> Result<(), Error> {
         .route("/latest", get(latest_firmware))
         .route(
             "/firmware/:file_name",
-            get(specific_firmware).post(post_firmware),
+            get(specific_firmware).post(post_firmware).delete(delete_firmware),
         );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;

@@ -146,7 +146,27 @@ pub async fn post_firmware(
 ) -> Result<(), (StatusCode, String)> {
     stream_to_file(&file_name, request.into_body().into_data_stream()).await
 }
-//todo implement delete_firmware
-async fn delete_firmware() {
-    todo!("delete firmware from ./bin")
+pub async fn delete_firmware(AxumPath(file_name): AxumPath<String>) -> (StatusCode, HeaderMap, std::string::String) {
+    
+    let result = tokio::fs::remove_file(Path::new(FIRMWARE_DIR).join(file_name)).await;
+
+    match result {
+        Ok(_) => {
+            (
+                StatusCode::OK,
+                HeaderMap::default(),
+                "Firmware successfully deleted !".to_string()
+            )
+        },
+        Err(err) => {
+            println!("{}", err);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                HeaderMap::default(),
+                "Skill issue".to_string()
+            )
+
+        }
+    }
+
 }
