@@ -9,6 +9,7 @@ use axum::{
     extract::Request,
     http::{HeaderMap, StatusCode},
 };
+use futures_util::TryStreamExt;
 use http_body_util::{BodyStream, StreamBody};
 use serde_json::{json, Value};
 use tokio_util::io::ReaderStream;
@@ -139,7 +140,6 @@ pub async fn specific_firmware(
         "Firmware file not found".to_string(),
     )
 }
-//todo implement post_firmware
 pub async fn post_firmware(
     AxumPath(file_name): AxumPath<String>,
     request: Request,

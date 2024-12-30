@@ -15,13 +15,13 @@ async fn main() -> Result<(), Error> {
 
     // build our application with a route
     let app = Router::new()
-        // `GET /` goes to `root`
         .route("/", get(root))
-        // `POST /users` goes to `create_user`
         .route("/latest", get(latest_firmware))
-        .route("/firmware/:file_name", get(specific_firmware).post(post_firmware));
+        .route(
+            "/firmware/:file_name",
+            get(specific_firmware).post(post_firmware),
+        );
 
-    // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;
     axum::serve(listener, app).await?;
     Ok(())
