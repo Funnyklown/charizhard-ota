@@ -7,13 +7,13 @@ edition = "2021"
 anyhow = "1.0.95"
 async-std = { version = "1.8.0", features = ["attributes"] }
 axum = {version = "0.7.9", features = ["json"]}
-cargo-todo = "0.2.1"
 cargo-todos = "0.1.0"
 env_logger = "0.11.6"
 futures-util = "0.3.31"
 http-body-util = "0.1.2"
 jsonwebtoken = "8.1.1"
 regex = "1.11.1"
+reqwest = { version = "0.12.11" , features =["json"] }
 serde = "1.0.216"
 serde_json = "1.0.134"
 tempfile = "3.14.0"

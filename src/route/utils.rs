@@ -60,7 +60,7 @@ where
         tokio::io::copy(&mut body_reader, &mut file).await?;
 
         Ok::<_, io::Error>(())
-    }   
+    }
     .await
     .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
 }

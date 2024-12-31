@@ -140,33 +140,34 @@ pub async fn specific_firmware(
         "Firmware file not found".to_string(),
     )
 }
+
+//curl -X POST http://localhost:8080/firmware/charizhard.V1.3.bin -T ./firmware.bin
 pub async fn post_firmware(
     AxumPath(file_name): AxumPath<String>,
     request: Request,
 ) -> Result<(), (StatusCode, String)> {
     stream_to_file(&file_name, request.into_body().into_data_stream()).await
 }
-pub async fn delete_firmware(AxumPath(file_name): AxumPath<String>) -> (StatusCode, HeaderMap, std::string::String) {
-    
+
+//curl -X DELETE http://localhost:8080/firmware/charizhard.V1.3.bin
+pub async fn delete_firmware(
+    AxumPath(file_name): AxumPath<String>,
+) -> (StatusCode, HeaderMap, std::string::String) {
     let result = tokio::fs::remove_file(Path::new(FIRMWARE_DIR).join(file_name)).await;
 
     match result {
-        Ok(_) => {
-            (
-                StatusCode::OK,
-                HeaderMap::default(),
-                "Firmware successfully deleted !".to_string()
-            )
-        },
+        Ok(_) => (
+            StatusCode::OK,
+            HeaderMap::default(),
+            "Firmware successfully deleted !".to_string(),
+        ),
         Err(err) => {
             println!("{}", err);
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 HeaderMap::default(),
-                "Skill issue".to_string()
-            )
-
+                "Skill issue".to_string(),
+            );
         }
     }
-
 }

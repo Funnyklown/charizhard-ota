@@ -19,7 +19,9 @@ async fn main() -> Result<(), Error> {
         .route("/latest", get(latest_firmware))
         .route(
             "/firmware/:file_name",
-            get(specific_firmware).post(post_firmware).delete(delete_firmware),
+            get(specific_firmware)
+                .post(post_firmware)
+                .delete(delete_firmware),
         );
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;
