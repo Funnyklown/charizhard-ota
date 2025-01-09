@@ -2,12 +2,11 @@ use async_std::{prelude::Stream, stream::StreamExt};
 use axum::{
     body::Bytes,
     http::{HeaderMap, HeaderValue, StatusCode},
-    response::IntoResponse,
     BoxError,
 };
 use futures_util::TryStreamExt;
 use std::io;
-use tokio::{fs::File, io::BufWriter, sync::futures};
+use tokio::{fs::File, io::BufWriter};
 use tokio_util::io::{ReaderStream, StreamReader};
 
 pub async fn get_file(

@@ -28,7 +28,7 @@ pub fn protected_router(instance: KeycloakAuthInstance) -> Router {
             .passthrough_mode(PassthroughMode::Block)
             .persist_raw_claims(false)
             .expected_audiences(vec![String::from("account")])
-            .required_roles(vec![String::from("administrator")])
+            .required_roles(vec![String::from("Admin")])
             .build(),
    )
 
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Error> {
 
     let keycloak_auth_instance = KeycloakAuthInstance::new(
         KeycloakConfig::builder()
-            .server(Url::parse("http://127.0.0.1:8180").unwrap())
+            .server(Url::parse("https://keycloak.local:8443/").unwrap())
             .realm(String::from("charizhard-ota"))
             .build(),
     );
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Error> {
     let router = public_router().merge(protected_router(keycloak_auth_instance));
 
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8081").await?;
     axum::serve(listener, router.into_make_service()).await?;
     Ok(())
 }

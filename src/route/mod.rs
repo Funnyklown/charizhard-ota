@@ -4,15 +4,12 @@ use async_std::{
     path::Path,
     stream::{self, StreamExt},
 };
-use axum::extract::Path as AxumPath;
+use axum::{extract::Path as AxumPath, Extension};
 use axum::{
     extract::Request,
     http::{HeaderMap, StatusCode},
 };
-use futures_util::TryStreamExt;
-use http_body_util::{BodyStream, StreamBody};
-use serde_json::{json, Value};
-use tokio_util::io::ReaderStream;
+use axum_keycloak_auth::decode::KeycloakToken;
 use utils::{get_file, stream_to_file};
 mod utils;
 
@@ -141,15 +138,20 @@ pub async fn specific_firmware(
     )
 }
 
-//curl -X POST http://localhost:8080/firmware/charizhard.V1.3.bin -T ./firmware.bin
+//curl -X POST http://localhost:8080/firmware/charizhard.V1.3.bin \
+//  -T ./firmware.bin \
+//  -H "Authorization: Bearer $JWT_TOKEN" 
 pub async fn post_firmware(
     AxumPath(file_name): AxumPath<String>,
+    Extension(token): Extension<KeycloakToken<String>>,
     request: Request,
-) -> Result<(), (StatusCode, String)> {
+) -> Result<(), (StatusCode, std::string::String)>{
     stream_to_file(&file_name, request.into_body().into_data_stream()).await
 }
 
-//curl -X DELETE http://localhost:8080/firmware/charizhard.V1.3.bin
+//curl -X DELETE http://localhost:8080/firmware/charizhard.V1.3.bin \
+//  -T ./firmware.bin \
+//  -H "Authorization: Bearer $JWT_TOKEN" 
 pub async fn delete_firmware(
     AxumPath(file_name): AxumPath<String>,
 ) -> (StatusCode, HeaderMap, std::string::String) {
