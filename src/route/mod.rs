@@ -4,19 +4,100 @@ use async_std::{
     path::Path,
     stream::{self, StreamExt},
 };
-use axum::{extract::Path as AxumPath, Extension};
+use axum::{
+    extract::Path as AxumPath,
+    http::version,
+    response::{IntoResponse, IntoResponseParts},
+    Extension, Json,
+};
 use axum::{
     extract::Request,
     http::{HeaderMap, StatusCode},
 };
 use axum_keycloak_auth::decode::KeycloakToken;
+use serde::Serialize;
 use utils::{get_file, stream_to_file};
 mod utils;
 
 const FIRMWARE_DIR: &str = "./bin";
+
+#[derive(Serialize)]
+struct Manifest {
+    version: String,
+    error: String,
+}
+
 // basic handler that responds with a static string
 pub async fn root() -> &'static str {
     "Welcome to Charizhard OTA ! Check /latest/ to get latest firmware"
+}
+
+pub async fn handle_manifest() -> impl IntoResponse {
+    let entries = match fs::read_dir(FIRMWARE_DIR).await {
+        Ok(entries) => entries,
+        Err(e) => {
+            println!("{}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                HeaderMap::default(),
+                Json(Manifest {
+                    version: "".to_string(),
+                    error: "Failed to read firmware directory".to_string(),
+                }),
+            );
+        }
+    };
+
+    let mut firmware_files = Vec::new();
+    tokio::pin!(entries); // Pin the stream for iteration
+    while let Some(entry_result) = entries.next().await {
+        match entry_result {
+            Ok(entry) => {
+                if let Ok(mut file_name) = entry.file_name().into_string() {
+                    if file_name.starts_with("charizhard.V") && file_name.ends_with(".bin") {
+                        let mut version_firm = file_name.split_off(12);
+                        let _ = version_firm.split_off(3);
+                        firmware_files.push(version_firm);
+                    }
+                }
+            }
+            Err(err) => {
+                println!("{}", err);
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    HeaderMap::default(),
+                    Json(Manifest {
+                        version: "".to_string(),
+                        error: "Error reading directory".to_string(),
+                    }),
+                );
+            }
+        }
+    }
+
+    firmware_files.sort_by(|a, b| a.cmp(b));
+    let version = match firmware_files.last() {
+        Some(version) => version.to_string(),
+        None => {
+            return (
+                StatusCode::NO_CONTENT,
+                HeaderMap::default(),
+                Json(Manifest {
+                    version: "".to_string(),
+                    error: "No firmware files found".to_string(),
+                }),
+            );
+        }
+    };
+
+    return (
+        StatusCode::OK,
+        HeaderMap::default(),
+        Json(Manifest {
+            version,
+            error: "Found".to_string(),
+        }),
+    );
 }
 
 pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
@@ -140,18 +221,18 @@ pub async fn specific_firmware(
 
 //curl -X POST http://localhost:8080/firmware/charizhard.V1.3.bin \
 //  -T ./firmware.bin \
-//  -H "Authorization: Bearer $JWT_TOKEN" 
+//  -H "Authorization: Bearer $JWT_TOKEN"
 pub async fn post_firmware(
     AxumPath(file_name): AxumPath<String>,
     Extension(token): Extension<KeycloakToken<String>>,
     request: Request,
-) -> Result<(), (StatusCode, std::string::String)>{
+) -> Result<(), (StatusCode, std::string::String)> {
     stream_to_file(&file_name, request.into_body().into_data_stream()).await
 }
 
 //curl -X DELETE http://localhost:8080/firmware/charizhard.V1.3.bin \
 //  -T ./firmware.bin \
-//  -H "Authorization: Bearer $JWT_TOKEN" 
+//  -H "Authorization: Bearer $JWT_TOKEN"
 pub async fn delete_firmware(
     AxumPath(file_name): AxumPath<String>,
 ) -> (StatusCode, HeaderMap, std::string::String) {
