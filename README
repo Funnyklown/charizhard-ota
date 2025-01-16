@@ -1,6 +1,4 @@
 # Charizhard OTA API
-
-
 ##  API Endpoints
 
 ### 1. **Welcome Message**
@@ -130,4 +128,4 @@ curl -X DELETE http://127.0.0.1:8080/firmware/charizhard.V1.0.bin
 
 ---
 
-Happy coding! 
+Happy coding! 🎉
