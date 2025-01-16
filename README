@@ -1,7 +1,7 @@
-# 📦 Charizhard OTA API
+# Charizhard OTA API
 
 
-## 🌐 API Endpoints
+##  API Endpoints
 
 ### 1. **Welcome Message**
 - **Endpoint**: `/`
@@ -89,12 +89,12 @@
 
 ---
 
-## 📂 Directory Structure
+## Directory Structure
 - **`/bin/`**: Stores all firmware binaries.
 
 ---
 
-## 📝 Notes
+##  Notes
 - Ensure the `/bin/` directory exists in the project root.
 - Firmware files must follow the naming convention: `name.V<major>.<minor>.bin` (e.g., `charizhard.V1.0.bin`).
 
@@ -124,7 +124,7 @@ curl -X DELETE http://127.0.0.1:8080/firmware/charizhard.V1.0.bin
 
 ---
 
-## 🔒 Security Considerations
+##  Security Considerations
 - Validate user inputs to prevent directory traversal attacks.
 - Add authentication for sensitive operations (e.g., uploading or deleting firmware).
 
