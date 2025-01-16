@@ -46,7 +46,7 @@ async fn main() -> Result<(), Error> {
 
     let keycloak_auth_instance = KeycloakAuthInstance::new(
         KeycloakConfig::builder()
-            .server(Url::parse("https://keycloak.local:8443/").unwrap())
+            .server(Url::parse("http://localhost:8080/").unwrap())
             .realm(String::from("charizhard-ota"))
             .build(),
     );
