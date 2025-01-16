@@ -1,4 +1,4 @@
-name: Rust
+name: Rust and Docker
 
 on:
   push:
@@ -15,14 +15,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-     - name: Check cargo audits
+    - name: Check Cargo Audits
       run: |
-        cargo install cargo-audit --locked
+        cargo install cargo-audit --locked || cargo install cargo-audit --force
         cargo audit
     - name: Build
       run: cargo build --verbose
-   
- docker:
+
+  docker:
     runs-on: ubuntu-latest
 
     steps:
