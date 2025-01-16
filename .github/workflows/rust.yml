@@ -19,5 +19,7 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Check cargo audits
-      run: cargo audit
+      run: | 
+      cargo install cargo-audit --locked
+      cargo audit
       
