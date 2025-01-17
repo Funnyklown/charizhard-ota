@@ -1,37 +1,25 @@
-ARG RUST_VERSION=1.83.0
 ARG APP_NAME=charizhard-ota
 
-FROM rust:${RUST_VERSION}-alpine AS build
-ARG APP_NAME
+FROM lukemathwalker/cargo-chef:latest-rust-alpine AS chef
 WORKDIR /app
 
-RUN apk add --no-cache clang lld musl-dev git
+# Install necessary dependencies
+RUN apk add --no-cache openssl-dev pkgconfig musl-dev
 
-RUN --mount=type=bind,source=src,target=src \
-    --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
-    --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
-    --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/usr/local/cargo/registry/ \
-cargo build --locked --release && \
-cp ./target/release/$APP_NAME /bin/server
+FROM chef AS planner
+COPY ./Cargo.toml ./Cargo.lock ./
+COPY ./src ./src
+RUN cargo chef prepare --recipe-path recipe.json
 
+FROM chef AS builder
+COPY --from=planner /app/recipe.json .
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
+RUN cargo build --release --target x86_64-unknown-linux-musl
+RUN mv ./target/x86_64-unknown-linux-musl/release/${APP_NAME} /app/app
 
-FROM alpine:3.18 AS final
+FROM scratch AS runtime
+WORKDIR /app
+COPY --from=builder /app/app /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/app"]
 
-ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
-USER appuser
-
-# Copy the executable from the "build" stage.
-COPY --from=build /bin/server /bin/
-
-# What the container should run when it is started.
-CMD ["/bin/server"]
