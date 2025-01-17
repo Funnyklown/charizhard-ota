@@ -4,6 +4,8 @@ FROM lukemathwalker/cargo-chef:latest-rust-alpine AS chef
 WORKDIR /app
 
 # Install necessary dependencies
+
+RUN apt-get install perl
 RUN apk add --no-cache openssl-dev pkgconfig musl-dev
 RUN rustup target add x86_64-unknown-linux-musl
 
