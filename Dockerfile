@@ -1,5 +1,4 @@
 ARG APP_NAME=charizhard-ota
-ENV APP_NAME=${APP_NAME}
 
 FROM lukemathwalker/cargo-chef:latest-rust-alpine AS chef
 WORKDIR /app
