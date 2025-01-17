@@ -1,10 +1,12 @@
 ARG APP_NAME=charizhard-ota
+ENV APP_NAME=${APP_NAME}
 
 FROM lukemathwalker/cargo-chef:latest-rust-alpine AS chef
 WORKDIR /app
 
 # Install necessary dependencies
 RUN apk add --no-cache openssl-dev pkgconfig musl-dev
+RUN rustup target add x86_64-unknown-linux-musl
 
 FROM chef AS planner
 COPY ./Cargo.toml ./Cargo.lock ./
