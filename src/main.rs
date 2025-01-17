@@ -53,7 +53,7 @@ async fn main() -> Result<(), Error> {
 
     let router = public_router().merge(protected_router(keycloak_auth_instance));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8081").await?;
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8081").await?;
     axum::serve(listener, router.into_make_service()).await?;
     Ok(())
 }
