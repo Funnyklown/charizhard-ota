@@ -47,12 +47,13 @@ async fn main() -> Result<(), Error> {
     let keycloak_auth_instance = KeycloakAuthInstance::new(
         KeycloakConfig::builder()
             // a modifier évidemment au deployement
-            .server(Url::parse("http://localhost:8080/").unwrap())
+            .server(Url::parse("http://10.10.35.69:8080/").unwrap())
             .realm(String::from("charizhard-ota"))
             .build(),
     );
-
     let router = public_router().merge(protected_router(keycloak_auth_instance));
+
+   
 
     // 0.0.0.0 signifie qu'on écoute sur toutes les nci
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8081").await?;

@@ -1,3 +1,5 @@
+use std::env::{self, VarError};
+
 //todo clean the the useless unwraps by using anyhow-error response
 use async_std::{
     fs::{self, File},
@@ -15,6 +17,9 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use axum_keycloak_auth::decode::KeycloakToken;
+use minio_rsc::{provider::StaticProvider, Minio};
+use openssl::sign;
+use reqwest::{Method, Response};
 use serde::Serialize;
 use utils::{get_file, stream_to_file};
 mod utils;
@@ -164,59 +169,67 @@ pub async fn latest_firmware() -> (StatusCode, HeaderMap, std::string::String) {
 pub async fn specific_firmware(
     AxumPath(file_name): AxumPath<String>,
 ) -> (StatusCode, HeaderMap, std::string::String) {
-    let entries = match fs::read_dir(FIRMWARE_DIR).await {
-        Ok(entries) => entries,
-        Err(e) => {
-            println!("{}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                HeaderMap::default(),
-                "Failed to read firmware directory".to_string(),
-            );
-        }
+
+    let access_key = match env::var("MINIO_ACCESS_KEY") {
+        Ok(key) => key,
+        Err(_) => VarError::NotPresent.to_string()
     };
 
-    tokio::pin!(entries); // Pin the stream for iteration
-    while let Some(entry_result) = entries.next().await {
-        match entry_result {
-            Ok(entry) => {
-                let caca = entry.file_name().into_string();
-                if caca == Ok(file_name.to_string()) {
-                    let file = match tokio::fs::File::open(
-                        Path::new(FIRMWARE_DIR).join(file_name.clone()),
+    let signature = match env::var("MINIO_SIGNATURE") {
+        Ok(signature) => signature,
+        Err(_) => VarError::NotPresent.to_string()
+    };
+    
+     // setup database config
+     let provider = StaticProvider::new(access_key, signature, None);
+     let minio = Minio::builder()
+         .endpoint("10.10.35.70:9000") //where to look for database
+         .provider(provider)
+         .secure(false)
+         .build()
+         .unwrap();
+    
+    let executor = minio.executor(Method::GET);
+    let query = executor
+        .bucket_name("bin")
+        .object_name(file_name.clone())
+        .send_ok()
+        .await;
+
+    match query {
+        Ok(res) => {
+            let body = res.bytes().await;
+            match body {
+                Ok(bytes) => {
+                    let content = String::from_utf8_lossy(&bytes).to_string();
+                    let mut headers = HeaderMap::new();
+                    headers.insert("Content-Type", "application/octet-stream".parse().unwrap());
+                    headers.insert("Content-Disposition", format!("attachment; filename=\"{}\"", file_name).parse().unwrap());
+
+                    return (
+                        StatusCode::OK,
+                        headers,
+                        format!("Firmware successfully downloaded: {}", content),
                     )
-                    .await
-                    {
-                        Ok(file) => file,
-                        Err(e) => {
-                            println!("{}", e);
-                            return (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                HeaderMap::default(),
-                                "Failed to open firmware file".to_string(),
-                            );
-                        }
-                    };
-                    return get_file(file, &file_name).await;
+                }
+                Err(e) => {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        HeaderMap::default(),
+                        format!("Failed to read object content: {}", e),
+                    )
                 }
             }
-            Err(err) => {
-                println!("{}", err);
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    HeaderMap::default(),
-                    "Error reading directory entry".to_string(),
-                );
-            }
+        }
+        Err(e) => {
+            return (
+                StatusCode::NOT_FOUND,
+                HeaderMap::default(),
+                e.to_string(),
+            )
         }
     }
-    /* `(StatusCode, HeaderMap, std::string::String)` value */
-    // If no firmware files are found
-    (
-        StatusCode::NOT_FOUND,
-        HeaderMap::default(),
-        "Firmware file not found".to_string(),
-    )
+   
 }
 
 //curl -X POST http://localhost:8080/firmware/charizhard.V1.3.bin \
