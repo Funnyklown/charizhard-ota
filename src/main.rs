@@ -67,7 +67,6 @@ pub fn protected_router(instance: KeycloakAuthInstance, minstance: MinioInstance
                 .build(),
         )
         .with_state(minstance.get_minio())
-        .fallback(fallback)
 }
 
 #[tokio::main]

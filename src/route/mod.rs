@@ -20,7 +20,7 @@ use axum_keycloak_auth::decode::KeycloakToken;
 use minio_rsc::{client::ListObjectsArgs, Minio};
 use reqwest::{get, Method, Response};
 use serde::Serialize;
-use utils::{get_file, stream_to_file};
+use utils::get_file;
 mod utils;
 
 const FIRMWARE_DIR: &str = "bin";
