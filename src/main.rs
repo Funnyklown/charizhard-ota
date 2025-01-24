@@ -48,7 +48,6 @@ pub fn public_router(instance: MinioInstance) -> Router {
         .route("/firmware/:file_name", get(specific_firmware))
         .route("/manifest", get(handle_manifest))
         .with_state(instance.get_minio())
-        .fallback(fallback)
 }
 
 pub fn protected_router(instance: KeycloakAuthInstance, minstance: MinioInstance) -> Router {
@@ -83,7 +82,7 @@ async fn main() -> Result<(), Error> {
     );
 
     let minstance = MinioInstance::new()?;
-    let router = public_router(minstance.clone()).merge(protected_router(keycloak_auth_instance, minstance.clone()));
+    let router = public_router(minstance.clone()).merge(protected_router(keycloak_auth_instance, minstance.clone())).fallback(fallback);
 
     // 0.0.0.0 signifie qu'on écoute sur toutes les nci
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8081").await?;

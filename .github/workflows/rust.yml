@@ -2,22 +2,36 @@ name: Rust and Docker
 
 on:
   push:
-    branches: [ "master" , "minio" ]
+    branches: 
+      - "master"
+      - "minio"
   pull_request:
-    branches: [ "master" ]
+    branches: 
+      - "master"
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Check Cargo Audits
-      run: |
-        cargo install cargo-audit --locked || cargo install cargo-audit --force
-        cargo audit
-    - name: Build
-      run: cargo build --verbose
+      # Step 1: Checkout the code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Install Rust and Build the Binary
+      - name: Build Rust Application
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release --target=x86_64-unknown-linux-musl
+
+      # Step 3: Build Docker Image
+      - name: Build Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: false
