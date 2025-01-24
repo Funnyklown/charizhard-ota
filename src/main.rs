@@ -9,20 +9,49 @@ use axum_keycloak_auth::{
     PassthroughMode,
 };
 use charizhard_ota::route::{root, specific_firmware};
+use minio_rsc::{client::MinioBuilder, error::ValueError, provider::StaticProvider, Minio};
 use reqwest::Url;
-use route::{delete_firmware, handle_manifest, latest_firmware, post_firmware};
+use route::{delete_firmware, fallback, handle_manifest, latest_firmware, post_firmware};
 use std::result::Result::Ok;
 mod route;
 
-pub fn public_router() -> Router {
+#[derive(Clone)]
+pub struct MinioInstance {
+    minio: Minio,
+}
+
+impl MinioInstance {
+    pub fn new() -> Result<MinioInstance, anyhow::Error> {
+        // setup database config
+        let provider = match StaticProvider::from_env() {
+            Some(provider) => provider,
+            None => return Err(Error::msg("Env varibles not found")),
+        };
+
+        let minio = Minio::builder()
+            .endpoint("10.10.35.70:9000") //where to look for database
+            .provider(provider)
+            .secure(false)
+            .build()?;
+        Ok(MinioInstance { minio })
+    }
+
+    pub fn get_minio(self) -> Minio {
+        self.minio
+    }
+}
+
+pub fn public_router(instance: MinioInstance) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/latest", get(latest_firmware))
         .route("/firmware/:file_name", get(specific_firmware))
         .route("/manifest", get(handle_manifest))
+        .with_state(instance.get_minio())
+        .fallback(fallback)
 }
 
-pub fn protected_router(instance: KeycloakAuthInstance) -> Router {
+pub fn protected_router(instance: KeycloakAuthInstance, minstance: MinioInstance) -> Router {
     Router::new()
         .route(
             "/firmware/:file_name",
@@ -37,6 +66,8 @@ pub fn protected_router(instance: KeycloakAuthInstance) -> Router {
                 .required_roles(vec![String::from("Admin")])
                 .build(),
         )
+        .with_state(minstance.get_minio())
+        .fallback(fallback)
 }
 
 #[tokio::main]
@@ -51,9 +82,9 @@ async fn main() -> Result<(), Error> {
             .realm(String::from("charizhard-ota"))
             .build(),
     );
-    let router = public_router().merge(protected_router(keycloak_auth_instance));
 
-   
+    let minstance = MinioInstance::new()?;
+    let router = public_router(minstance.clone()).merge(protected_router(keycloak_auth_instance, minstance.clone()));
 
     // 0.0.0.0 signifie qu'on écoute sur toutes les nci
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8081").await?;

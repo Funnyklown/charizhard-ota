@@ -1,38 +1,59 @@
-use async_std::{prelude::Stream, stream::StreamExt};
+use async_std::prelude::Stream;
 use axum::{
     body::Bytes,
-    http::{HeaderMap, HeaderValue, StatusCode},
+    http::{HeaderMap, StatusCode},
     BoxError,
 };
 use futures_util::TryStreamExt;
+use minio_rsc::Minio;
+use reqwest::Method;
 use std::io;
 use tokio::{fs::File, io::BufWriter};
-use tokio_util::io::{ReaderStream, StreamReader};
+use tokio_util::io::StreamReader;
+
+use super::FIRMWARE_DIR;
 
 pub async fn get_file(
-    file: File,
-    filename: &String,
+    instance: Minio,
+    file_name: &String,
 ) -> (StatusCode, HeaderMap, std::string::String) {
-    // Create a stream body for the file
-    let mut stream = ReaderStream::new(file);
-    let mut body = Vec::new();
-    while let Some(chunck) = stream.next().await {
-        body.extend_from_slice(&chunck.unwrap());
+    let executor = instance.executor(Method::GET);
+    let query = executor
+        .bucket_name(FIRMWARE_DIR)
+        .object_name(file_name.clone())
+        .send_ok()
+        .await;
+    match query {
+        Ok(res) => {
+            let body = res.bytes().await;
+            match body {
+                Ok(bytes) => {
+                    let content = String::from_utf8_lossy(&bytes).to_string();
+                    let mut headers = HeaderMap::new();
+                    headers.insert("Content-Type", "application/octet-stream".parse().unwrap());
+                    headers.insert(
+                        "Content-Disposition",
+                        format!("attachment; filename=\"{}\"", file_name)
+                            .parse()
+                            .unwrap(),
+                    );
+                    return (
+                        StatusCode::OK,
+                        headers,
+                        format!("Firmware successfully downloaded: {}", content),
+                    );
+                }
+                Err(e) => {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        HeaderMap::default(),
+                        format!("Failed to read object content: {}", e),
+                    )
+                }
+            }
+        }
+        Err(e) => return (StatusCode::NOT_FOUND, HeaderMap::default(), e.to_string()),
     }
-
-    let full_body = String::from_utf8(body).unwrap();
-    // Set headers
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        axum::http::header::CONTENT_TYPE,
-        HeaderValue::from_static("application/octet-stream"),
-    );
-    headers.insert(
-        axum::http::header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename)).unwrap(),
-    );
-
-    return (StatusCode::OK, headers, full_body);
 }
 
 pub async fn stream_to_file<S, E>(path: &str, stream: S) -> Result<(), (StatusCode, String)>

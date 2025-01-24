@@ -2,7 +2,7 @@ name: Rust and Docker
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master" , "minio" ]
   pull_request:
     branches: [ "master" ]
 
