@@ -27,11 +27,15 @@ jobs:
           rustup target add x86_64-unknown-linux-musl
           cargo build --release --target=x86_64-unknown-linux-musl
 
-      # Step 3: Build Docker Image
-      - name: Build Docker Image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64
-          push: false
+    # Step 3 : dzdzdz
+    -  name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+    # Step 4: Build Docker Image
+    - name: Build Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64
+        push: false
