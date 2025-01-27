@@ -1,4 +1,12 @@
-# Charizhard OTA API
+<div align="center">
+
+<img src="logo.png" width="25%" />
+
+# CharizHard OTA API
+
+A cutting-edge hardware solution designed to secure data exchanges and protect devices from hardware-based threats. This is the server-side implementation for over-the-air updates.
+</div>
+
 ##  API Endpoints
 
 ### 1. **Welcome Message**
@@ -71,14 +79,14 @@
 ## 🛠️ Setup Instructions
 
 1. **Clone the Repository**:
-   ```bash
+   ```fish
    git clone https://github.com/your-repo/charizhard-ota.git
    cd charizhard-ota
    ```
 
 2. **Run the Application**:
    Ensure you have Rust installed. Then, run:
-   ```bash
+   ```fish
    cargo run
    ```
 
@@ -101,22 +109,22 @@
 ##  Example Usage
 
 ### Upload Firmware
-```bash
+```fish
 curl -X PUT --data-binary @charizhard.V1.0.bin http://127.0.0.1:8080/firmware/charizhard.V1.0.bin
 ```
 
 ### Get Latest Firmware
-```bash
+```fish
 curl -X GET http://127.0.0.1:8080/latest/ --output latest_firmware.bin
 ```
 
 ### Download Specific Firmware
-```bash
+```fish
 curl -X GET http://127.0.0.1:8080/firmware/charizhard.V1.0.bin --output charizhard.V1.0.bin
 ```
 
 ### Delete Firmware
-```bash
+```fish
 curl -X DELETE http://127.0.0.1:8080/firmware/charizhard.V1.0.bin
 ```
 
