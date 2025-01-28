@@ -9,7 +9,7 @@ use axum_keycloak_auth::{
     PassthroughMode,
 };
 use charizhard_ota::route::{root, specific_firmware};
-use minio_rsc::{client::MinioBuilder, error::ValueError, provider::StaticProvider, Minio};
+use minio_rsc::{provider::StaticProvider, Minio};
 use reqwest::Url;
 use route::{delete_firmware, fallback, handle_manifest, latest_firmware, post_firmware};
 use std::result::Result::Ok;
@@ -82,7 +82,9 @@ async fn main() -> Result<(), Error> {
     );
 
     let minstance = MinioInstance::new()?;
-    let router = public_router(minstance.clone()).merge(protected_router(keycloak_auth_instance, minstance.clone())).fallback(fallback);
+    let router = public_router(minstance.clone())
+        .merge(protected_router(keycloak_auth_instance, minstance.clone()))
+        .fallback(fallback);
 
     // 0.0.0.0 signifie qu'on écoute sur toutes les nci
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8081").await?;

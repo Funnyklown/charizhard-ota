@@ -1,24 +1,14 @@
-use std::{env::{self, VarError}, usize};
-
-//todo clean the the useless unwraps by using anyhow-error response
-use async_std::{
-    fs::{self, File},
-    path::Path,
-    stream::{self, StreamExt},
-};
 use axum::{
     extract::Request,
     http::{HeaderMap, StatusCode},
 };
 use axum::{
     extract::{Path as AxumPath, State},
-    http::version,
     response::IntoResponse,
-    Extension, Json,
+    Json,
 };
-use axum_keycloak_auth::decode::KeycloakToken;
 use minio_rsc::{client::ListObjectsArgs, Minio};
-use reqwest::{get, Method, Response};
+use reqwest::Method;
 use serde::Serialize;
 use utils::get_file;
 mod utils;
@@ -32,6 +22,7 @@ struct Manifest {
 }
 
 // basic handler that responds with a static string
+#[allow(dead_code)]
 pub async fn root() -> &'static str {
     "Welcome to Charizhard OTA ! Check /latest to get latest firmware"
 }
@@ -54,7 +45,7 @@ pub async fn handle_manifest(State(instance): State<Minio>) -> impl IntoResponse
                 })
                 .collect();
 
-            version_files.sort_by(|a, b| a.cmp(b));
+            version_files.sort();
             let latest_version = match version_files.last() {
                 Some(vers) => vers,
                 None => {
@@ -62,28 +53,26 @@ pub async fn handle_manifest(State(instance): State<Minio>) -> impl IntoResponse
                         StatusCode::NO_CONTENT,
                         Json(Manifest {
                             version: "".to_string(),
-                            error: format!("No firmware files found"),
+                            error: "No firmware files found".to_string(),
                         }),
                     )
                 }
             };
-            return (
+            (
                 StatusCode::OK,
                 Json(Manifest {
                     version: latest_version.to_string(),
                     error: "Found".to_string(),
                 }),
-            );
-        }
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(Manifest {
-                    version: "".to_string(),
-                    error: format!("Error querying bucket {}", e),
-                }),
             )
         }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(Manifest {
+                version: "".to_string(),
+                error: format!("Error querying bucket {}", e),
+            }),
+        ),
     }
 }
 
@@ -106,7 +95,7 @@ pub async fn latest_firmware(
                 })
                 .collect();
 
-            firmware_files.sort_by(|a, b| a.cmp(b));
+            firmware_files.sort();
 
             if let Some(latest_firmware) = firmware_files.last() {
                 return get_file(instance, latest_firmware).await;
@@ -125,6 +114,8 @@ pub async fn latest_firmware(
         ),
     }
 }
+
+#[allow(dead_code)]
 pub async fn specific_firmware(
     AxumPath(file_name): AxumPath<String>,
     State(instance): State<Minio>,
@@ -137,25 +128,30 @@ pub async fn specific_firmware(
 //  -H "Authorization: Bearer $JWT_TOKEN"
 pub async fn post_firmware(
     AxumPath(file_name): AxumPath<String>,
-    Extension(token): Extension<KeycloakToken<String>>,
     State(instance): State<Minio>,
     request: Request,
 ) -> (StatusCode, std::string::String) {
     let executor = instance.executor(Method::POST);
     let body = request.into_body();
-    let bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
-    let query = executor.bucket_name(FIRMWARE_DIR).object_name(file_name).body(bytes).send_ok().await;
+    let bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap(); //cant fail, usize::max is never reached
+    let query = executor
+        .bucket_name(FIRMWARE_DIR)
+        .object_name(file_name)
+        .body(bytes)
+        .send_ok()
+        .await;
     match query {
-        Ok(_) => {
-            return (
-                StatusCode::OK,
-                format!("Firmware successfully uploaded !"),
+        Ok(_) => (
+            StatusCode::OK,
+            "Firmware successfully uploaded !".to_string(),
+        ),
+        Err(e) => {
+            eprintln!("Upload error: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Error uploading firmware {}", e),
             )
         }
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Error uploading firmware {}", e),
-        ),
     }
 }
 
@@ -167,15 +163,17 @@ pub async fn delete_firmware(
     State(instance): State<Minio>,
 ) -> (StatusCode, std::string::String) {
     let executor = instance.executor(Method::DELETE);
-    let query = executor.bucket_name(FIRMWARE_DIR).object_name(file_name).send_ok().await;
+    let query = executor
+        .bucket_name(FIRMWARE_DIR)
+        .object_name(file_name)
+        .send_ok()
+        .await;
     match query {
-        Ok(_) => {
-            return (
-                StatusCode::OK,
-                format!("Firmware successfully deleted !"),
-            )
-        }
-        Err(e) => return (
+        Ok(_) => (
+            StatusCode::OK,
+            "Firmware successfully deleted !".to_string(),
+        ),
+        Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Error deleting firmware {}", e),
         ),

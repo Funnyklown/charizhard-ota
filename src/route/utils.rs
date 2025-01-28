@@ -1,15 +1,6 @@
-use async_std::prelude::Stream;
-use axum::{
-    body::Bytes,
-    http::{HeaderMap, StatusCode},
-    BoxError,
-};
-use futures_util::TryStreamExt;
+use axum::http::{HeaderMap, StatusCode};
 use minio_rsc::Minio;
 use reqwest::Method;
-use std::io;
-use tokio::{fs::File, io::BufWriter};
-use tokio_util::io::StreamReader;
 
 use super::FIRMWARE_DIR;
 
@@ -37,21 +28,19 @@ pub async fn get_file(
                             .parse()
                             .unwrap(),
                     );
-                    return (
+                    (
                         StatusCode::OK,
                         headers,
                         format!("Firmware successfully downloaded: {}", content),
-                    );
-                }
-                Err(e) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        HeaderMap::default(),
-                        format!("Failed to read object content: {}", e),
                     )
                 }
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    HeaderMap::default(),
+                    format!("Failed to read object content: {}", e),
+                ),
             }
         }
-        Err(e) => return (StatusCode::NOT_FOUND, HeaderMap::default(), e.to_string()),
+        Err(e) => (StatusCode::NOT_FOUND, HeaderMap::default(), e.to_string()),
     }
 }
