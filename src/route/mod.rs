@@ -8,6 +8,7 @@ use axum::{
     Json,
 };
 use minio_rsc::{client::ListObjectsArgs, Minio};
+use regex::Regex;
 use reqwest::Method;
 use serde::Serialize;
 use utils::get_file;
@@ -30,18 +31,17 @@ pub async fn root() -> &'static str {
 pub async fn handle_manifest(State(instance): State<Minio>) -> impl IntoResponse {
     let args = ListObjectsArgs::default();
     let query = instance.list_objects("bin", args).await;
+    let re = Regex::new(r"charizhard\.V(\d+\.\d+)\.bin").unwrap();
+
     match query {
         Ok(res) => {
             let mut version_files: Vec<String> = res
                 .contents
                 .iter()
                 .filter_map(|object| {
-                    if object.key.starts_with("charizhard") || object.key.ends_with(".bin") {
-                        // on transforme charizhard.Vx.x.bin en x.x
-                        Some(object.key.clone().split_off(12).split_off(3))
-                    } else {
-                        None
-                    }
+                    re.captures(&object.key).and_then(|caps| {
+                        caps.get(1).map(|version| version.as_str().to_string())
+                    })
                 })
                 .collect();
 
@@ -81,20 +81,20 @@ pub async fn latest_firmware(
 ) -> (StatusCode, HeaderMap, std::string::String) {
     let args = ListObjectsArgs::default();
     let query = instance.list_objects("bin", args).await;
+    let re = Regex::new(r"^charizhard\.V(\d+\.\d+)\.bin$").unwrap();
     match query {
         Ok(res) => {
             let mut firmware_files: Vec<String> = res
                 .contents
                 .iter()
                 .filter_map(|object| {
-                    if object.key.starts_with("charizhard") || object.key.ends_with(".bin") {
-                        Some(object.key.clone())
-                    } else {
-                        None
-                    }
+                    re.captures(&object.key).and_then(|caps| {
+                        Some(caps.get(1)?.as_str().to_string())
+                    })
                 })
                 .collect();
 
+            eprintln!("{:?}", firmware_files);
             firmware_files.sort();
 
             if let Some(latest_firmware) = firmware_files.last() {
