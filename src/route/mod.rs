@@ -131,7 +131,7 @@ pub async fn post_firmware(
     State(instance): State<Minio>,
     request: Request,
 ) -> (StatusCode, std::string::String) {
-    let executor = instance.executor(Method::POST);
+    let executor = instance.executor(Method::PUT);
     let body = request.into_body();
     let bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap(); //cant fail, usize::max is never reached
     let query = executor
