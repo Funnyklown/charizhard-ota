@@ -81,7 +81,7 @@ pub async fn latest_firmware(
 ) -> (StatusCode, HeaderMap, std::string::String) {
     let args = ListObjectsArgs::default();
     let query = instance.list_objects("bin", args).await;
-    let re = Regex::new(r"^charizhard\.V(\d+\.\d+)\.bin$").unwrap();
+    let re = Regex::new(r"/^charizhard\.V\d+\.\d+\.bin$/").unwrap();
     match query {
         Ok(res) => {
             let mut firmware_files: Vec<String> = res
