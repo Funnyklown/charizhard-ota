@@ -39,9 +39,8 @@ pub async fn handle_manifest(State(instance): State<Minio>) -> impl IntoResponse
                 .contents
                 .iter()
                 .filter_map(|object| {
-                    re.captures(&object.key).and_then(|caps| {
-                        caps.get(1).map(|version| version.as_str().to_string())
-                    })
+                    re.captures(&object.key)
+                        .and_then(|caps| caps.get(1).map(|version| version.as_str().to_string()))
                 })
                 .collect();
 
@@ -81,17 +80,23 @@ pub async fn latest_firmware(
 ) -> (StatusCode, HeaderMap, std::string::String) {
     let args = ListObjectsArgs::default();
     let query = instance.list_objects("bin", args).await;
-    let re = Regex::new(r"/^charizhard\.V\d+\.\d+\.bin$/").unwrap();
+    let re = match Regex::new(r"^(charizhard\.V\d+\.\d+\.bin)$") {
+        Ok(re) => re,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                HeaderMap::default(),
+                format!("Error compiling regex: {}", e),
+            )
+        }
+    };
+
     match query {
         Ok(res) => {
             let mut firmware_files: Vec<String> = res
                 .contents
                 .iter()
-                .filter_map(|object| {
-                    re.captures(&object.key).and_then(|caps| {
-                        Some(caps.get(1)?.as_str().to_string())
-                    })
-                })
+                .filter_map(|object| re.captures(&object.key).map(|caps| caps[1].to_string()))
                 .collect();
 
             eprintln!("{:?}", firmware_files);
